@@ -114,6 +114,9 @@ class Game():
     current_turn: int
     players: list[Player]
     board: Board
+    
+    def get_opponent(self, player: Player) -> Player:
+        return self.players[0] if player == self.players[1] else self.players[1]
 
     def __init__(self):
         self.board = Board()
@@ -169,20 +172,26 @@ class Game():
         print('Game Over')
 
     def start_turn(self, player: Player) -> bool:
+        if (self.is_checkmate(player)):
+            print("Checkmate")
+            return True
+        
         # os.system('cls' if os.name == 'nt' else 'clear')
         print(self.board)
         print("\n")
         print(f"{player.team_colour.value} turn")
         move = input()
         input_tiles = move.split(" ")
-        
+
         if (len(input_tiles) != 2):
             print("Invalid move, please provide a move in the correct format eg. 'A2 A4'")
             return self.start_turn(player)
 
+        from_tile_name, to_tile_name = input_tiles
+
         from_tile = self.board.get_tile_by_name(from_tile_name)
         to_tile = self.board.get_tile_by_name(to_tile_name)
-        
+
         try:
             self.validate_move(from_tile, to_tile, player)
         except InvalidMoveException as e:
@@ -191,32 +200,46 @@ class Game():
 
         self.board.move_piece(from_tile.piece, to_tile_name)
 
-        is_checkmate = False
+        return False
 
-        return is_checkmate
-    
     def validate_move(self, from_tile: Tile, to_tile: Tile, player: Player) -> bool:
         if (not from_tile):
-            raise InvalidMoveException(f'You must provide a tile to move from')
-        
+            raise InvalidMoveException("You must provide a tile to move from")
+
         if (not to_tile):
-            raise InvalidMoveException(f'You must provide a tile to move to')
+            raise InvalidMoveException("You must provide a tile to move to")
 
         if (not from_tile.piece):
             raise InvalidMoveException(f"There is no piece on {from_tile.name}")
-        
+
         is_valid_piece_move, error = from_tile.piece.validate_move(player, to_tile)
         if (error):
             raise InvalidMoveException(error)
 
-        if (is_valid_piece_move):
-            next_board = copy.deepcopy(self.board)
-            next_board_from_tile = next_board.get_tile_by_name(from_tile.name)
-            next_board.move_piece(next_board_from_tile.piece, to_tile.name)
-            next_board_king = [piece for piece in next_board.pieces if piece.team_colour == player.team_colour and piece.type == 'King'][0]
-            next_board_enemy_pieces = [piece for piece in next_board.pieces if piece.team_colour != player.team_colour]
-            
-            moving_into_check = next_board_king.tile.is_threatened(next_board_enemy_pieces)
-            
-            if (moving_into_check):
-                raise InvalidMoveException("Invalid move, you are in check")
+        if (is_valid_piece_move and self.is_moving_into_check(from_tile, to_tile)):
+            raise InvalidMoveException("You must not move into check")
+
+    def is_moving_into_check(self, from_tile: Tile, to_tile: Tile) -> bool:
+        game_copy = copy.deepcopy(self)
+        board_copy = game_copy.board
+        player_copy = game_copy.players[game_copy.current_turn]
+
+        next_board_from_tile = board_copy.get_tile_by_name(from_tile.name)
+        board_copy.move_piece(next_board_from_tile.piece, to_tile.name)
+        return game_copy.is_check(player_copy)
+
+    def has_valid_move(self, player: Player) -> bool:
+        for piece in player.pieces:
+            if len([tile for tile in piece.get_view() if self.validate_move(piece.tile, tile, player)]) > 0:
+                return True
+        return False
+
+    def is_check(self, player: Player) -> bool:
+        enemy_pieces = [piece for piece in self.get_opponent(player).pieces]
+        return player.king.tile.is_threatened(enemy_pieces)
+
+    def is_checkmate(self, player: Player) -> bool:
+        return self.is_check(player) and not self.has_valid_move(player)
+
+    def is_stalemate(self, player: Player) -> bool:
+        return not self.has_valid_move(player)
