@@ -1,4 +1,13 @@
-venv
-__pycache__
-*.pickle
-notes.md
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# VSCode workspace
+*.code-workspace

@@ -1,0 +1,53 @@
+[project]
+name = "python-chess"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+lint.select = [
+    "ALL",
+]
+lint.extend-select = ["I"]
+lint.ignore = [
+    #### specific rules
+    "D100",   # ignore missing docs
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "D200",
+    "D205",
+    "D212",
+    "D400",
+    "D401",
+    "D415",
+    "E402",   # false positives for local imports
+    "TRY003", # external messages in exceptions are too verbose
+    "TD002",
+    "TD003",
+    "FIX002", # too verbose descriptions of todos
+    "ANN201",
+    "ANN202",
+    "ANN204",
+    "T201",
+    "ERA001",
+    "EM101",
+    "EM102",
+    "TD004",
+    "TD005",
+    "PLR2004",
+    "COM812",
+]

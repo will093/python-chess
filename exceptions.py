@@ -1,2 +1,2 @@
-class InvalidMoveException(Exception):
+class InvalidMoveError(Exception):
     pass
