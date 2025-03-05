@@ -15,9 +15,3 @@ if __name__ == "__main__":
 
     game.play()
 
-# Implement board to FEN
-# Implement castling
-# Implement en passant
-# Implement pawn promotion
-# Implement draw by repitition
-# Better user messages etc...
