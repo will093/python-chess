@@ -1,28 +1,15 @@
 from __future__ import annotations
 
 import copy
+import os
 import re
 from pathlib import Path
 
 from enums import ConsoleColors, TeamColour
 from exceptions import InvalidMoveError
 from pieces import Bishop, King, Knight, Pawn, Piece, Queen, Rook
-
-
-class Player:
-    team_colour: TeamColour
-    is_turn: bool
-    pieces: list[Piece]
-
-    @property
-    def king(self):
-        return next(piece for piece in self.pieces if isinstance(piece, King))
-
-    def __init__(self, team_colour: TeamColour, pieces: list[Piece]):
-        self.team_colour = team_colour
-        self.pieces = pieces
-        self.is_turn = team_colour == TeamColour.WHITE
-
+from player import ChessApiPlayer, CommandLinePlayer, Player
+from utility import throws_exception
 
 row_names = {0: "A", 1: "B", 2: "C", 3: "D", 4: "E", 5: "F", 6: "G", 7: "H"}
 row_indices = {v: k for k, v in row_names.items()}
@@ -96,7 +83,7 @@ class Board:
 
     def get_tile(self, row: int, col: int):
         if 0 <= row < 8 and 0 <= col < 8:
-            return self.tiles[row, col]
+            return self.tiles[row][col]
         return None
 
     def __str__(self):
@@ -134,9 +121,8 @@ class Game:
     ):
         self.board = board or Board()
 
-        # TODO: pieces should reference the player ?
         self.players = players or [
-            Player(
+            CommandLinePlayer(
                 team_colour=TeamColour.WHITE,
                 pieces=[
                     Pawn(self.board.get_tile_by_name("A2"), TeamColour.WHITE),
@@ -157,7 +143,7 @@ class Game:
                     Rook(self.board.get_tile_by_name("H1"), TeamColour.WHITE),
                 ],
             ),
-            Player(
+            ChessApiPlayer(
                 team_colour=TeamColour.BLACK,
                 pieces=[
                     Pawn(self.board.get_tile_by_name("A7"), TeamColour.BLACK),
@@ -185,8 +171,11 @@ class Game:
 
     def play(self):
         checkmate = False
+        previous_move = ""
         while True:
-            checkmate = self.start_turn(self.players[self.current_turn])
+            checkmate, move = self.start_turn(self.players[self.current_turn], previous_move)
+            previous_move = move
+
             if checkmate:
                 break
             self.current_turn = (self.current_turn + 1) % 2
@@ -195,38 +184,33 @@ class Game:
                 self.game_log.append(self)
         print("Game Over")
 
-    def start_turn(self, player: Player) -> bool:
+    def start_turn(self, player: Player, previous_move: str) -> bool:
+        os.system("cls" if os.name == "nt" else "clear")  # noqa: S605
         if self.is_checkmate(player):
             print("Checkmate")
-            return True
+            return (True, "")
 
-        # os.system('cls' if os.name == 'nt' else 'clear')
-        print(self.board)
-        print("\n")
-        print(f"{player.team_colour.value} turn")
-        move = input()
-        input_tiles = move.split(" ")
+        from_tile_name, to_tile_name = None, None
 
-        if len(input_tiles) != 2:
-            print("Invalid move, please provide a move in the correct format eg. 'A2 A4'")
-            return self.start_turn(player)
+        previous_move_message = "" if not previous_move else f" ({previous_move})"
+        message = f"{player.team_colour.value} turn{previous_move_message}"
+        while True:
+            from_tile_name, to_tile_name = player.take_turn(self, message)
 
-        from_tile_name, to_tile_name = input_tiles
+            from_tile = self.board.get_tile_by_name(from_tile_name)
+            to_tile = self.board.get_tile_by_name(to_tile_name)
 
-        from_tile = self.board.get_tile_by_name(from_tile_name)
-        to_tile = self.board.get_tile_by_name(to_tile_name)
-
-        try:
-            self.validate_move(from_tile, to_tile, player)
-        except InvalidMoveError as e:
-            print(e)
-            return self.start_turn(player)
+            try:
+                self.validate_move(from_tile, to_tile, player)
+                break
+            except InvalidMoveError as e:
+                message = e
 
         self.board.move_piece(from_tile.piece, to_tile_name)
 
         if player.team_colour == TeamColour.BLACK:
             self.full_turn_count += 1
-        return False
+        return (False, f"{from_tile_name} {to_tile_name}")
 
     def validate_move(self, from_tile: Tile, to_tile: Tile, player: Player) -> bool:
         if not from_tile:
@@ -261,7 +245,7 @@ class Game:
                     [
                         tile
                         for tile in piece.get_view()
-                        if self.validate_move(piece.tile, tile, player)
+                        if throws_exception(self.validate_move, InvalidMoveError)(piece.tile, tile, player)
                     ]
                 )
                 > 0
@@ -323,7 +307,6 @@ class Game:
             game = Game(game_log=game_log)
             game_log.append(game)
             return game
-        board = Board()
         [
             fen_board,
             fen_turn,
@@ -333,17 +316,18 @@ class Game:
             fen_full_turn_count,
         ] = fen.split(" ")
         fen_rows = reversed(fen_board.split("/"))
+        board = Board()
         pieces = [
             piece
             for row_index, row in enumerate(fen_rows)
             for piece in cls.to_pieces(row, row_index, board)
         ]
         players = [
-            Player(
+            CommandLinePlayer(
                 team_colour=TeamColour.WHITE,
                 pieces=[p for p in pieces if p.team_colour == TeamColour.WHITE],
             ),
-            Player(
+            ChessApiPlayer(
                 team_colour=TeamColour.BLACK,
                 pieces=[p for p in pieces if p.team_colour == TeamColour.BLACK],
             ),
