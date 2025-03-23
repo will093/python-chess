@@ -29,7 +29,7 @@ class Player:
         self.is_turn = team_colour == TeamColour.WHITE
 
     @abc.abstractmethod
-    def take_turn(self, game: Game) -> tuple[str, str]:
+    def take_turn(self, *_: list[any], **__: dict[str, any]) -> tuple[str, str]:
         return
 
 
@@ -47,7 +47,7 @@ class CommandLinePlayer(Player):
 
         if len(input_tiles) != 2:
             print("Invalid move, please provide a move in the correct format eg. 'A2 A4'")
-            return self.take_turn(game)
+            return self.take_turn(game, message)
 
         return (input_tiles[0].upper(), input_tiles[1].upper())
 

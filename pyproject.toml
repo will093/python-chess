@@ -10,6 +10,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pytest>=8.3.5",
     "ruff>=0.9.6",
 ]
 
@@ -52,4 +53,5 @@ lint.ignore = [
     "TD005",
     "PLR2004",
     "COM812",
+    "S101",
 ]

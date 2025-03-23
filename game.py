@@ -8,7 +8,7 @@ from pathlib import Path
 from enums import ConsoleColors, TeamColour
 from exceptions import InvalidMoveError
 from pieces import Bishop, King, Knight, Pawn, Piece, Queen, Rook
-from player import ChessApiPlayer, CommandLinePlayer, Player
+from player import Player
 from utility import throws_exception
 
 row_names = {0: "A", 1: "B", 2: "C", 3: "D", 4: "E", 5: "F", 6: "G", 7: "H"}
@@ -118,11 +118,12 @@ class Game:
         current_turn: int | None = None,
         full_turn_count: int | None = None,
         game_log: GameLog = None,
+        player_types: tuple[type[Player], type[Player]] | None = None,
     ):
         self.board = board or Board()
 
         self.players = players or [
-            CommandLinePlayer(
+            player_types[0](
                 team_colour=TeamColour.WHITE,
                 pieces=[
                     Pawn(self.board.get_tile_by_name("A2"), TeamColour.WHITE),
@@ -143,7 +144,7 @@ class Game:
                     Rook(self.board.get_tile_by_name("H1"), TeamColour.WHITE),
                 ],
             ),
-            ChessApiPlayer(
+            player_types[1](
                 team_colour=TeamColour.BLACK,
                 pieces=[
                     Pawn(self.board.get_tile_by_name("A7"), TeamColour.BLACK),
@@ -182,6 +183,7 @@ class Game:
 
             if self.game_log:
                 self.game_log.append(self)
+            yield
         print("Game Over")
 
     def start_turn(self, player: Player, previous_move: str) -> bool:
@@ -240,16 +242,14 @@ class Game:
 
     def has_valid_move(self, player: Player) -> bool:
         for piece in player.pieces:
-            if (
-                len(
-                    [
-                        tile
-                        for tile in piece.get_view()
-                        if throws_exception(self.validate_move, InvalidMoveError)(piece.tile, tile, player)
-                    ]
+            piece_valid_moves = [
+                tile
+                for tile in piece.get_view()
+                if not throws_exception(self.validate_move, InvalidMoveError)(
+                    piece.tile, tile, player
                 )
-                > 0
-            ):
+            ]
+            if len(piece_valid_moves) > 0:
                 return True
         return False
 
@@ -300,7 +300,7 @@ class Game:
         ]
 
     @classmethod
-    def from_log(cls, game_log: GameLog) -> Game:
+    def from_log(cls, game_log: GameLog, player_types: tuple[type[Player], type[Player]]) -> Game:
         fen = game_log.get_latest_fen()
         fen_item_count = 6
         if not fen or len(fen.split(" ")) != fen_item_count:
@@ -323,11 +323,11 @@ class Game:
             for piece in cls.to_pieces(row, row_index, board)
         ]
         players = [
-            CommandLinePlayer(
+            player_types[0](
                 team_colour=TeamColour.WHITE,
                 pieces=[p for p in pieces if p.team_colour == TeamColour.WHITE],
             ),
-            ChessApiPlayer(
+            player_types[1](
                 team_colour=TeamColour.BLACK,
                 pieces=[p for p in pieces if p.team_colour == TeamColour.BLACK],
             ),
