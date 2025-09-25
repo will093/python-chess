@@ -304,7 +304,7 @@ class Game:
         fen = game_log.get_latest_fen()
         fen_item_count = 6
         if not fen or len(fen.split(" ")) != fen_item_count:
-            game = Game(game_log=game_log)
+            game = Game(game_log=game_log, player_types=player_types)
             game_log.append(game)
             return game
         [
